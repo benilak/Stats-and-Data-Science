@@ -1,0 +1,79 @@
+---
+title: 'Task 10: Clean and Reformat (aka tidy)'
+output: 
+  html_document: 
+    keep_md: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, comment = FALSE)
+```
+
+## Background
+
+With stock return data from the previous task, we need to tidy this data for the creation of a time series plot. We want to look at the returns for each six-month period of the year in which the returns were reported. Your plot should highlight the tighter spread of the DJIA as compared to the other two selection methods (DARTS and PROS). We need to display a table of the DJIA returns with months on the rows and years in the columns (i.e. “spread” the data).
+
+### Tidy Data
+
+```{r tidy, echo = TRUE}
+library(tidyverse)
+
+dart.csv <- read_csv("https://github.com/byuistats/data/raw/master/Dart_Expert_Dow_6month_anova/Dart_Expert_Dow_6month_anova.csv")
+
+dart.csv <- dart.csv %>%
+  separate(contest_period, into = c("junk", "end_date"), sep = "-") %>%
+  separate(end_date, into = c("end_month", "end_year"), sep = -4, convert = TRUE) %>%
+  mutate(junk = NULL)
+
+# write_rds(dart.csv, "./dart.rds")
+```
+
+### Data Visualization
+
+These first two plots show the general spread of the data overall. The boxlots give a more accurate description of the distributions of returns for each year, while the jitter plot on the right offers a better visualization of the spread.
+
+```{r plots, fig.width=12}
+p1 <- dart.csv %>%
+  na.omit() %>%
+  ggplot(aes(x = end_year, y = value, group = end_year)) +
+  geom_boxplot() +
+  labs(x = "Year", y = "Return") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+p2 <- dart.csv %>%
+  na.omit() %>%
+  ggplot(aes(x = end_year, y = value)) +
+  geom_jitter() +
+  labs(x = "Year", y = "Return") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+gridExtra::grid.arrange(p1, p2, nrow = 1, top = "6-Month Returns by Year")
+```
+
+The plot below highlights the difference in spread between the DJIA returns and the others. The green points are grouped closer together than the rest, and the smooth curve helps to visualize the trend of these points versus the others.
+
+```{r, fig.align='center', fig.width=10}
+dart.djia <- dart.csv %>% 
+  filter(variable == 'DJIA')
+
+dart.csv %>%
+  na.omit() %>%
+  ggplot(aes(x = end_year, y = value, color = variable)) +
+  geom_jitter() +
+  labs(title = "6-Month Returns by Year", x = "Year", y = "Return", color = "Group") +
+  geom_smooth(data = dart.djia, level = 0.90) +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) 
+```
+
+### Data Table
+
+Here is a table listing the returns for the DJIA group.
+
+```{r}
+dart.csv %>%
+  filter(variable == 'DJIA') %>%
+  spread(key = "end_year", value = "value") %>%
+  knitr::kable()
+```

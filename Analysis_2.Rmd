@@ -1,0 +1,89 @@
+---
+title: "Movies"
+output: 
+  html_document:
+    theme: cerulean
+---
+
+```{r, include=FALSE}
+library(mosaic)
+movies <- read.csv("../Data/movies.csv", header=TRUE)
+```
+[A quick note: the ugly output that has infested this file is undefeatable. No amount of code or hacks can eliminate it. It is the bane of this analysis. Please do your best to just pretend like it isn't there.]
+
+
+<br />
+
+### Background
+
+We all love movies, and most of us could make a list of our "top 5" favorites. Is your top 5 mostly comprised of new movies, or is it filled up with childhood classics? This might make us wonder if movies have gotten better throughout the years, or if it is rather the opposite. What era of film had (or has) the "best" movies? This analysis seeks to answer that question. 
+
+```{r, include=FALSE}
+library(mosaic)
+library(DT) # If you get an error stating: 
+            # Error in library(DT): there is no package called 'DT'
+            # You will need to run: install.packages("DT") 
+            # in your Console, then try "Knit HTML" again.
+movies <- read.csv("../Data/movies.csv", header=TRUE)
+```
+
+The data that will be analyzed here is a very large dataset harvested from the website IMDB.com, a database of pretty much every movie ever made. Anyone can rate any movie in the database, where a rating is on a scale of 1 to 10 stars. Each movie displays it's average rating. Below is a table of the first 100 movies in the database. (Some variables have been omitted to condense the table; these variables will not be used in the analysis).
+
+```{r, echo=FALSE}
+suppressMessages(library(memisc, warn.conflicts = FALSE, quietly=TRUE))
+colnames(movies) <- c("Title", "Year", "Budget ($)", "Length (minutes)", "Rating", "Votes", "R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8", "R9", "R10", "MPAA", "Action", "Animation", "Comedy", "Drama", "Documentary", "Romance", "Short")
+datatable(head(movies[ ,-c(12:25)], 100), options=list(lengthMenu = c(3,10,30)))
+```
+
+### Analysis
+
+#### Concerning Ratings
+This analysis mainly deals with the rating of each movie. We would like to know how "good" or "bad" movies are on average throughout film history. A good indicator of whether a movie was generally perceived as good or bad is its rating. Let's take a look at the mean and median ratings of movies over the past hundred years or so.
+
+```{r, echo=FALSE}
+suppressMessages(library(mosaic, warn.conflicts=FALSE, quietly=TRUE))
+ratingmedians <- median(Rating ~ Year, data = movies)
+ratingmeans <- mean(Rating ~ Year, data = movies)
+average_votes <- mean(Votes ~ Year, data = movies)
+ratings_by_year <- data.frame(1893:2005, ratingmeans, ratingmedians)
+colnames(ratings_by_year) <- c("Year", "Mean_Rating", "Median_Rating")
+ratings_by_year$Year <- as.numeric(as.character(ratings_by_year$Year))
+ggplot() +
+  geom_point(data = ratings_by_year, aes(x = Year, y = Mean_Rating, colour = "blue")) +
+  geom_point(data = ratings_by_year, aes(x = Year, y = Median_Rating, colour = "red")) +
+  labs(title = "Average Movie Ratings by Year", x = "Year", y = "Ratings")
+  coord_cartesian(ylim = c(1, 10))
+  theme_bw
+```
+
+The plot above shows the mean rating (blue) and median rating (red) each year starting from the first catalogued movie in 1893. The first thing we notice is that starting around the year 1930, the mean and median ratings are, for the most part, fairly close to each other. This is good — it means the data is not very skewed by, for instance, a band of people who gave a particular movie a 1/10.
+
+How does the plot help answer the question "when were movies the best?" Suprisingly, the 1920s seem to be our top candidate for the decade of best movies! Or at least we know that the average movie rating during that time is higher than any other time from the dawn of cinema up until 2005. After the 1920s we notice a steady decline until another gradual rise starting around 1990, after which movie ratings have climbed to an average close to a 7/10 after 2000.
+
+#### Concerning Votes
+What happens if only a few people rate a movie, and they all happened to be big fans? The movie would get a high rating, but it wouldn't necessarily mean everybody else liked it. Lets look at the number of times movies were rated and see if the data is telling at all.
+
+```{r, echo=FALSE}
+suppressMessages(library(memisc, warn.conflicts = FALSE, quietly=TRUE))
+variablethathasnothingtodowithyears <- c(1984)
+stats_by_year <- data.frame(1893:2005, ratingmeans, ratingmedians, average_votes)
+colnames(stats_by_year) <- c("Year", "Mean_Rating", "Median_Rating", "Mean_Votes")
+ggplot() +
+  geom_point(data = stats_by_year, aes(x = Year, y = Mean_Votes, col = "orange")) +
+  labs(title = "Average Number of Votes Per Movie", x = "Year", y = "# of Votes")
+```
+
+The above plot shows the average number of votes across old and new movies alike. A "vote" represents one person who rated a movie on IMDB.com. For instance, for movies made in 1928, the average amount of people who rated a movie is about 121.
+
+We see that there are exceptionally more votes per movie that were made in more recent years versus older movies. The question of "how many votes per movie should there be before the rating is valid?" is perhaps subjective, and will not be explored here. What we know is that movies after 1990s generally received about 5 times more votes than movies made in the 1920s. 
+
+### Interpretation
+
+We saw in the ratings plot that there are two significant eras of the highest rated movies, around the 1920s decade, and the movies made post-year-2000. While the era in the 20s (and even up until the 1950s) might have had the best movies, we can be much more certain that newer movie ratings after the year 2000 are more valid since so many more people have rated them. This analysis concludes that the best movies are indeed the most recent movies, released after the new millenium. 
+
+
+
+
+
+
+

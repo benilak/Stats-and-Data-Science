@@ -1,0 +1,148 @@
+---
+title: "Analysis 4: Memory Recall"
+output: 
+  html_document:
+    theme: cerulean
+    code_folding: hide
+---
+
+<script type="text/javascript">
+ function showhide(id) {
+    var e = document.getElementById(id);
+    e.style.display = (e.style.display == 'block') ? 'none' : 'block';
+ }
+</script>
+
+```{r, include=FALSE}
+library(mosaic)
+library(car)
+library(DT) #You may need to run: install.packages("DT") 
+```
+
+<br />
+
+#### Background
+
+Many teachers and other educators are interested in understanding how to best deliver new content to students. In general, they have two choices of how to do this.
+
+1. The Meshed Approach
+    * Deliver new content while simultaneously reviewing previously understood content.
+
+2. The Before Approach
+    * Deliver new content after fully reviewing previously understood content.
+
+A study was performed to determine whether the *Meshed* or *Before* approaches to delivering content had any positive benefits on memory recall. 
+
+<div style="padding-left:15px;">
+
+##### <a href="javascript:showhide('uniquename')">The Experiment <span style="font-size:8pt;">(click to view)</span></a>
+
+
+<div id="uniquename" style="display:none;">
+
+Individuals were seated at a computer and shown a list of words. Words appeared on the screen one at a time, for two seconds each, until all words had been shown (40 total). After all words were shown, they were required to perform a few two-digit mathematical additions (like 15 + 25) for 15 seconds to avoid immediate memory recall of the words. They were then asked to write down as many of the 40 words as they could remember. They were given a maximum of 5.3 minutes to recall words.
+
+The process of showing words and recalling words was repeated four times with the same list of words each time (four chances to get it right). The presentation of the first trial was the same for all treatment conditions. However, trials 2, 3, and 4 were slightly different for each treatment condition.
+
+<div style="padding-left:15px;">
+
+The `SFR` group (the control group) stands for Standard Free Recall. In all four trials the same list of 40 words was presented, in a random order each time.
+
+The `Before` group also used the same 40 words during each trial. However, any words that were correctly recalled in a previous trial were presented first, or *before* the words that were not recalled in the last trial. After all the correct words were presented in random order, the non-recalled words were presented in a random order.
+
+The `Meshed` group also used the same 40 words during each trial. However, words that were correctly recalled in a previous trial were alternated with a missed word during the next presentation order. 
+
+</div>
+
+The data records the number of correctly recalled words (out of the 40 possible) from the fourth trial. Results were obtained for 30 students, 10 in each of the three treatment groups: `SFR`, `Before`, and `Meshed`. 
+
+</div>
+
+##### <a href="javascript:showhide('uniquename2')">The Data <span style="font-size:8pt;">(click to view)</span></a>
+
+<div id="uniquename2" style="display:none;">
+
+Click "Code" to the right to view the data used in this analysis. Each of the groups "SFR", "Before", and "Meshed" are displayed on their own page, or you can select "Show (30) entries" to see the entire datatable. 
+
+```{r echo=TRUE}
+datatable(Friendly, options=list(lengthMenu = c(10,30)))
+```
+
+
+</div>
+</div>
+
+<br />
+The analysis of the data seeks to answer the question: **do either the "Before" or "Meshed" approaches have any positive benefits on memory recall?**
+
+<!-- Begin writing your analysis below here. -->
+
+####Analysis
+
+We must interpret what "positive benefit on memory recall" means. In this analysis, we will say the approach had a positive effect on memory recall if the individuals within the treatment group remembered significantly more words than those in the control group "SFR". What is considered "significant" in this sense will be determined by the tests we run.
+
+Before we run any tests, lets look at a visual representation of the data to see if we can make any inferences. Below is a plot showing the number of words each individual recalled, seperated into their respective groups. 
+
+```{r echo=TRUE}
+stripchart(correct ~ condition, data=Friendly, method="stack", main="Number of Words Recalled Correctly", xlab="Words Recalled Correctly", col=c("steelblue","indianred","forestgreen"), pch=c(18,16,17), cex=2)
+```
+
+From the graphic above it seems apparent enough that the "Before" and "Meshed" methods both had a positive effect on memory recall! But we would also like to be more exact in our inferences, so we will run some tests.
+
+The samples size of each group is fairly small (n = 10), and so it would be nice to perform a Wilcoxon Rank Sum test. However, as we can see from the plot, there are a significant amount of "ties" in the data — there are too many repeats of the same value. These values are shown below.
+
+```{r echo=TRUE}
+SFR <- subset(Friendly, condition=="SFR")
+Before <- subset(Friendly, condition=="Before")
+Meshed <- subset(Friendly, condition=="Meshed")
+```
+
+**SFR** `r sort(SFR$correct)`
+
+**Before** `r sort(Before$correct)`
+
+**Meshed** `r sort(Meshed$correct)`
+
+A Wilcoxon test is not appropriate in case, so we would like to perform an Independent Samples t-Test. In order to do this, we will need to varify that the data is normally distributed. We create a QQ-plot for each of the groups and observe:
+
+```{r echo=TRUE}
+qqPlot(SFR$correct, main="SFR (control group)", xlab="normal quantiles", ylab="Words")
+qqPlot(Meshed$correct, main="Meshed", xlab="normal quanitles", ylab="Words")
+qqPlot(Before$correct, main="Before", xlab="normal quantiles", ylab="Words")
+```
+
+The QQ-plots indicate that the "Before" and "Meshed" group data are not normal (since there are instances outside of the dotted lines). There are only a few such outliers, and so we will have to remove them from the datasets in order to perform the t-test. 
+
+Now that each sample is verified normal, we can run the tests. We first run the t-test between the control group "SFR" and the "Before" group. Our alternative hypothesis is that the "SFR" mean is less than the "Before" mean, since this is what we have observed in the plot from above. The results are displayed below, which will be interpretted at the end of the analysis.
+
+```{r echo=TRUE}
+Beforemod <- subset(Before, correct != c(24,30))
+Meshedmod <- subset(Meshed, correct != 30)
+t.test(SFR$correct, Beforemod$correct, mu = 0, alternative = "less", conf.level = 0.95)
+```
+
+We also run the same test between the control group and the "Meshed" group. As with the first test, our null hypothesis is that the "SFR" mean is less than the "Meshed" mean. The results are displayed below and will be interpretted at the end of the analysis.
+
+```{r results='markup'}
+t.test(SFR$correct, Meshedmod$correct, mu = 0, alternative = "less", conf.level = 0.95)
+```
+
+Lastly, we may be curious as to *which* approach, "Before" or "Meshed" has a more positive effect on memory. By runnin a third independent samples t-test between the "Before" group and the "Meshed" group, we may find some insight concerning this inquiry. Since it is not immediately apparent which of these groups might have more effect on memory, the test is two-sided. 
+
+```{r echo=TRUE}
+t.test(Beforemod$correct, Meshedmod$correct, mu = 0, alternative = "two.sided", conf.level = 0.95)
+```
+
+####Intepretation
+
+The test between groups "SFR" and "Before" gives a p-value of 0.02136. Since we have chosen a 95% confidence interval and 0.02136 < 0.05, we reject the null hypothesis that the means of "SFR" and "Before" are the same. There is statistically significant evidence that the "Before" approach has a positive effect on memory recall.
+
+The test between groups "SFR" and "Meshed" gives a p-value of 0.00741 which is less than < 0.05. We reject the null hypothesis that the means are the same and say there is statistically significant evidence that the "Meshed" approach has a positive effect on memory recall.
+
+At this point we are fairly confident that both approaches increase memory recall. We must also remember though that we eliminated a few points in the dataset, and so our conclusion assumes that removing these outliers has not significantly altered the results.
+
+Finally, the test between the "Before" and "Meshed" approaches gives a p-value of 0.6945, which is greater than 0.05. As a result, we will not reject the null hypothesis and say that there is insufficient evidence to conclude that one approach is better than the other. 
+
+Considering the ties in the data that prevented us from performing a Wilcoxon Test, and the outliers eliminated before performing the t-tests, it may be in one's interest to collect more data to perform further tests. For now, we shall say it's safe to assume that the "Before" and "Meshed" approaches to delivering content to students are more effective than not using them at all.
+
+

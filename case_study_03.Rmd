@@ -1,0 +1,210 @@
+---
+title: 'Case Study 3: Becoming a Databender'
+output:
+  pdf_document: default
+  html_document:
+    code_folding: hide
+    fig_align: center
+    fig_height: 6
+    fig_weidth: 12
+    keep_md: yes
+---
+
+```{r, echo=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, cache = TRUE, fig.width = 10)
+```
+
+```{r load_libraries, include=FALSE}
+# Use this R-Chunk to load all your libraries!
+#install.packages("tidyverse") # run this line once in console to get package
+library(tidyverse)
+library(dplyr)
+library(nycflights13)
+library(DT)
+```
+
+### Background
+
+You just started your internship at a big firm in New York, and your manager gave you an extensive file of flights that departed JFK, LGA, or EWR in 2013. From this data your manager wants you to answer the following questions;
+
+1) If I am leaving before noon, which two airlines do you recommend at each airport (JFK, LGA, EWR) that will have the lowest delay time at the 75th percentile?
+
+2) Which origin airport is best to minimize my chances of a late arrival when I am using Delta Airlines?
+
+3) Which destination airport is the worst (you decide on the metric for worst) airport for arrival time?
+
+Make sure to include one visualization that shows the complexity of the data.
+
+
+### Question 1
+
+*If I am leaving before noon, which two airlines do you recommend at each airport (JFK, LGA, EWR) that will have the lowest delay time at the 75th percentile?*
+
+I filtered out all flights scheduled to depart after 12:00pm, and then found the 75th percentile of delayed departures grouped by airport and airline. The graph I made is a faceted horizontal bar chart, one facet per airport, each displaying the 75th percentile along the x-axis. This makes it easy to find the airlines with the lowest delay value (or the ones closest to zero if we prefer to avoid early departures). 
+
+```{r}
+# arrange() was used in an attempt to order the bars in each facet
+# from least to greatest
+flights75 <- flights %>%
+  filter(sched_dep_time < 1200, !is.na(dep_delay)) %>%
+  group_by(origin, carrier) %>%
+  summarise(q75 = quantile(dep_delay, .75)) %>%
+  arrange(origin, q75)
+
+percentile_plot <- flights75 %>%
+  filter(carrier != "OO") %>%
+  ggplot() +
+  geom_bar(mapping = aes(x = carrier, y = q75, fill = origin), 
+           stat = "identity", position = "dodge") +
+  facet_grid(origin ~ .) +
+  coord_flip() + 
+  labs(title = "Which airports have the lowest delay times?",
+       subtitle = "Airline delay times at the 75th percentile for each airport",
+       y = "Departure Delay, 75th percentile (minutes)", 
+       x = "Airline", fill = "Airport") +
+  theme_light()
+
+percentile_plot
+#ggsave("plot1.png", plot = percentile_plot, width = 15, height = 5, units = "in")
+```
+
+Each airport has several airlines with a 75th percentile departure time equal to zero. If by "lowest" delay we mean closest to zero but not negative, then there is no exact answer to the question: just pick any two such airline for each airport. If negative values are considered then it makes it easier. The airlines with the lowest delay values (75th percentile) are:
+
+* EWR: US Airways and Endeavor Air
+* JFK: Hawaiin Airlines and Delta Air Lines
+* LGA: US Airways, and three tied for second place (Mesa Airlines, American Airlines, and JetBlue Airways)
+
+
+### Question 2
+
+*Which origin airport is best to minimize my chances of a late arrival when I am using Delta Airlines?*
+
+I began by building a five-number-summary for Delta late arrivals per airport. While the numbers here may have been sufficient enough, I also created density plots for each airport. The densities reveal that delay times for JFK are overall less than for the other two airports.
+
+This is the five-number summary of the data:
+
+```{r tidy_data}
+# Use this R-Chunk to clean & wrangle your data!
+# five-number summary for each airport + standard deviation
+library(pander)
+flights %>%
+  filter(carrier == "DL") %>%
+  group_by(origin) %>%
+  summarise(min = summary(arr_delay)[1],
+            q1 = summary(arr_delay)[2],
+            med = summary(arr_delay)[3],
+            mean = (arr_delay)[4],
+            q3 = summary(arr_delay)[5],
+            max = summary(arr_delay)[6],
+            sd = sd(arr_delay, na.rm = TRUE)) %>%
+  pander()
+```
+
+```{r}
+
+flights %>%
+  filter(carrier == "DL") %>%
+  group_by(origin) %>%
+  summarise(min = summary(arr_delay)[1],
+            q1 = summary(arr_delay)[2],
+            med = summary(arr_delay)[3],
+            mean = (arr_delay)[4],
+            q3 = summary(arr_delay)[5]) %>%
+  gather('min', 'q1', 'med', 'mean', 'q3', key = "stat", value = "arr_delay", 
+         convert = TRUE) %>%
+  ggplot(aes(x = factor(stat, levels = c('min', 'q1', 'mean', 'med','q3')),
+             y = arr_delay, group = origin, 
+             color = origin)) +
+  geom_point(size = 2) +
+  geom_line(size = 1) +
+  labs(title = "Summary of Arrival Delay Times by Airport", 
+       subtitle = "Descriptive statistics for each airport including: 
+       minimum, 1st quartile, median, mean, and 3rd quartile", 
+       x = "Statistic", 
+       y = "Delay of Arrival Time (minutes)", 
+       color = "Airport")
+```
+
+$~$
+
+
+
+```{r}
+flights %>%
+  filter(carrier == "DL", !is.na(arr_delay)) %>%
+  ggplot() +
+  geom_density(aes(x = arr_delay, color = origin), size = 1) +
+  scale_x_continuous(limits = c(NA, 50)) +
+  labs(title = "Comparing airports: Delta Airlines' delayed arrivals", 
+       x = "Delay in arrival (minutes)", 
+       y = "Density",
+       color = "Origin Airport")
+```
+
+The only statistic for JFK that is not smaller than the other airports is the mean. This tells us that JFK has a more skewed distribution of delay times than the other airports. Since JFK has the smallest values out of the three airports for the median, 1st and 3rd quartiles, I feel safe concluding that JFK is the best airport to choose if I want to minimize my chances of a late arrival with Delta.
+
+$~$
+
+### Question 3
+
+*Which destination airport is the worst airport for arrival time?*
+
+To answer this question I again looked at arrival delay times. The process here was to filter the data until we got the worst of the worst destination airports, then use those to create a graph that hopefully displays the very worst option. Firstly, I excluded airports with less than 50 flights since their summary statistics are probably not as reliable, and the chances of anyone wanting to book a flight there is small anyway. I then ran two passes to filter the data based on the worst arrival delay times (see code for the specifics).
+
+```{r}
+# filter airports with lesss than 50 flights
+valid_dest <- flights %>%
+  filter(!is.na(dest), !is.na(arr_delay)) %>%
+  count(dest) %>%
+  filter(n > 50) %>%
+  pull(dest)
+
+# 1st pass: exclude airports where the median, 1st and 3nd quartile are less than the mean of each of these statistics
+filtered_dest <- flights %>%
+  filter(!is.na(dest), !is.na(arr_delay), dest %in% valid_dest) %>%
+  group_by(dest) %>%
+  summarise(q25 = quantile(arr_delay, .25),
+            median = median(arr_delay), 
+            q75 = quantile(arr_delay, .75)) %>%
+  filter(q25 > mean(q25), 
+         median > mean(median),
+         q75 > mean(q75)) %>%
+  pull(dest)
+
+# 2nd pass: of the remaining airports, exclude those whose median delay time is less than the median of the remaining airports' median delay time
+filtered_dest2 <- flights %>%
+  filter(!is.na(dest), !is.na(arr_delay), dest %in% filtered_dest) %>%
+  group_by(dest) %>%
+  summarise(median = median(arr_delay)) %>%
+  filter(median > median(median)) %>%
+  pull(dest)
+```
+
+The very worst airports in regard to arrival delays are in the boxplot below:
+
+```{r}
+cae <- flights %>%
+  filter(!is.na(dest), !is.na(arr_delay), dest %in% "CAE") %>%
+  select(dest, arr_delay)
+
+flights %>%
+  filter(!is.na(dest), !is.na(arr_delay), dest %in% filtered_dest2) %>%
+  select(dest, arr_delay) %>%
+  ggplot() +
+  geom_boxplot(aes(x = dest, y = arr_delay)) +
+  geom_boxplot(data = cae, aes(x = dest, y = arr_delay), fill = "tomato1") +
+  scale_y_continuous(limits = c(-20, 35)) +
+  coord_flip() +
+  theme_dark() +
+  labs(title = "Airports with the longest delays for arriving flights",
+       subtitle = "The worst offender is highlighted in red: Columbia Metropolitan",
+       y = "Arrival delays (minutes)",
+       x = "Airport")
+```
+
+Conveniently, one airport stands out among the others as having the highest of all delay times: **Columbia Metropolitan (CAE)**. Not only does it have the highest median delay time, but surpringly the highest delay time at the 1st and 3rd quantiles too. It has a **median delay time of 28 minutes**, and an even worse mean at 41.8 minutes.
+
+
+
+
+$~$

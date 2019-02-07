@@ -1,0 +1,239 @@
+---
+title: "Reading Comprehension"
+output: 
+  html_document:
+    theme: cerulean
+    code_folding: hide
+---
+
+<script type="text/javascript">
+ function showhide(id) {
+    var e = document.getElementById(id);
+    e.style.display = (e.style.display == 'block') ? 'none' : 'block';
+ }
+</script>
+
+```{r, include=FALSE}
+library(mosaic)
+library(car)
+library(DT)
+library(pander)
+```
+
+```{r, eval=FALSE}
+#Play the above chunk and this one in your Console to access the data
+View(Baumann)
+?Baumann
+```
+
+### Background
+
+"This study investigated the effectiveness of explicit instruction in 'think aloud' as a means to promote elementary students' comprehension monitoring abilities" [(Baumann & Jones, 1992)](http://jlr.sagepub.com/content/24/2/143.full.pdf).
+
+
+<a href="javascript:showhide('abstract')">Details of the Study<span style="font-size:8pt;">&nbsp;(click to view)</span></a>
+
+<div id="abstract" style="display:none;">
+
+The following explanation of the experiment comes directly from the original research article [(Baumann & Jones, 1992)](http://jlr.sagepub.com/content/24/2/143.full.pdf).
+
+<div style="padding-left:30px; padding-right:30px;">
+
+Fourth-grade students from an elementary school in a rural midwestern community participated in the study. The school had adopted a team teaching plan, and three fourth-grade teachers shared an open classroom area. The teachers grouped the students for reading instruction across the three classes according to reading ability. One teacher each worked with a high [ability reading group], [one teacher worked with a] middle [ability group], and [the other teacher worked with the] low reading [ability] group. All groups used basal reading materials and were formed at the beginning of the school year on the basis of standardized achievement test data, prior performance in the basal reading program, and teacher judgment.
+
+Sixty-eight of the 72 students in the fourth-grade team participated in the study; the four nonparticipating students were mainstreamed special education students for whom the instructional materials were considered to be too frustrating to read. The 68 students were assigned randomly to one of the three experimental groups (Strat = 23 students; DRTA = 23 students; Basal = 22 students). Because of illness and transfer to another school, incomplete data were obtained for one subject each from the Strat and DRTA groups. Thus, the final sample consisted of 66 students, 32 girls and 34 boys.
+
+Posttests 1-3 were group-administered, quantitative measures obtained
+for all students in the sample. Posttest 1 was an error detection test. Posttest 2 was a comprehension monitoring questionnaire. Posttest 3 was a modified cloze test. To statistically account for students'
+preexperimental differences in comprehension monitoring abilities, two pretests were constructed, administered, and used as covariates in data analyses for Posttests 1-3.
+
+Pretest 1. The first pretest involved an error detection task designed to evaluate students' preintervention ability to monitor their comprehension.... Students were provided the following directions which were printed on the pretest and read aloud by the experimenter: 'Read the story carefully. Try to understand it as you read. There will be 16 sentences that do not belong in the story. Look for them as you read. Ask yourself, "What does not make sense in this story?" Underline the 16 sentences that do not make sense. Check your work when you are finished. If you cannot read a
+word, raise your hand, and we will help you.' Preceding Pretest 1, students were given a brief practice exercise that required them to identify obvious intruded sentences in two short texts. Pretest 1 was scored by calculating the number of correctly identified intruded sentences.
+
+Pretest 2. The second pretest queried students about the strategies they believed to be useful in promoting their understanding of stories. In this pretest, modeled after an instrument developed by Schmitt (1988, 1990), the students were presented with 15 multiple-choice items like the following:
+
+<div style="padding-left:15px;">
+When I read, it is a good idea to:
+
+A. sound out words I don't know.
+
+B. make some guesses about what will happen in the story.
+
+C. make a list of all the details in the story.
+
+D. look up new words in the dictionary.
+
+</div>
+
+Posttest 1: Error detection test. Posttest 1 was the same in form as Pretest 1: with 16 intruded sentences lexically consistent at a local level but semantically inconsistent at a global level. 
+
+Posttest 2: Comprehension monitoring questionnaire. Posttest 2, consisting of 18 items, was a slightly expanded version of Pretest 2. 
+
+Posttest 3: Degrees of Reading Power. The Degrees of Reading Power (DRP)
+(1986) is a standardized, commercially produced instrument that employs a modified cloze format (words are deleted from a selection and for each omission the student selects the most appropriate word from a list of five). According to the authors, DRP tests "are holistic measures of how well the messages within text are understood. . . . DRP tests focus measurement on determining how well students process or construct meaning from paragraphs as they read through a selection" (DRP Handbook, 1986, p. 1). Thus, the DRP, at one level, is a general reading comprehension assessment tool.
+
+</div>
+
+The data for this study are contained in the `Baumann` dataset.
+
+</div>
+
+
+To summarize, 66 students were divided randomly into 3 experimental groups of equal size: the **Basal**, **DRTA**, and **Strat** groups. Each group of students received instruction by a different experimental method, and was then tested on their comprehension monitoring abilities. We wish to analyze the data to see **which of the three instructional methods, if any, were effective.**
+
+The background study explains that two pretests were administered to discover whether students' abilities varied by group *before instruction*. If at least one group's ability is stochastically different, we should then analyze instructional method effectiveness based on *the difference* between pre- and post-test scores. If no significant differences can be found between groups in the pretests, we may assume all student's had roughly equal ability prior to the treatment. This means we will be able to analyze instructional effectiveness based on the raw post-test data.
+
+We will use the Kruskal-Wallis Rank Sum Test for all determinations. The hypotheses for each test in this analysis will be of the underlying form:
+
+$$
+  H_0: \text{The test scores are all from the same distribution.}
+$$
+$$
+  H_a: \text{At least one group's distribution is stochastically different for this test.}
+$$
+
+### Analysis
+
+Histograms of the data from both pretests indicate that the data is likely not normal. This reinforces our decision to perform a Kruskal-Wallis test rather than an ANOVA. The histograms may be viewed below.
+
+<a href="javascript:showhide('prehistograms')">Histograms of Pretests 1 & 2<span style="font-size:8pt;">&nbsp;(click to view)</span></a>
+
+<div id="prehistograms" style="display:none;">
+
+```{r, echo=FALSE, message=FALSE, fig.width=8.5}
+Baumann.pre1 <- subset(Baumann, select = c(group, pretest.1))
+Baumann.pre2 <- subset(Baumann, select = c(group, pretest.2))
+
+bpre1 <- ggplot(Baumann.pre1, aes(x=pretest.1, fill=group)) + 
+  geom_histogram(alpha=0.5, bins = 15) +
+  facet_grid(.~group) + 
+  labs(title="Pretest 1 Histograms", x="Test Score",
+       y="Count", fill="Group", color="Group")
+
+bpre2 <- ggplot(Baumann.pre2, aes(x=pretest.2, fill=group)) + 
+  geom_histogram(alpha=0.5, bins = 15) +
+  facet_grid(.~group) + 
+  labs(title="Pretest 2 Histograms", x="Test Score",
+       y="Count", fill="Group", color="Group")
+
+bpre1
+bpre2
+```
+
+</div>
+
+When tested at the 5% significance level, Kruskal-Wallis tests for pretest 1 and 2 both indicate a p-value greater than 0.05. 
+
+```{r echo=FALSE, comment=NA}
+kruskal.test(pretest.1 ~ group, data=Baumann.pre1)
+kruskal.test(pretest.2 ~ group, data=Baumann.pre2)
+```
+
+\newline
+
+\newline Therefore, we will assume student comprehension ability was evenly distributed across all groups *prior to instruction*. Since we do not need to account for greater or lesser ability from one group or another, we may continue our analysis using the post-test scores alone.
+
+Histograms of the post-test data once again indicate non-normality, which reaffirms our decision to perform Kruskal-Wallis tests. The histograms may be viewed below if desired.
+
+<a href="javascript:showhide('posthistograms')">Histograms of Post-tests 1 - 3<span style="font-size:8pt;">&nbsp;(click to view)</span></a>
+
+<div id="posthistograms" style="display:none;">
+
+```{r, echo=FALSE, message=FALSE, fig.width=8.5}
+Baumann.post1 <- subset(Baumann, select = c(group, post.test.1))
+Baumann.post2 <- subset(Baumann, select = c(group, post.test.2))
+Baumann.post3 <- subset(Baumann, select = c(group, post.test.3))
+
+bpost1 <- ggplot(Baumann.post1, aes(x=post.test.1, fill=group)) + 
+  geom_histogram(alpha=0.5, bins = 15) +
+  facet_grid(.~group) + 
+  labs(title="Post-test 1 Histograms", x="Test Score",
+       y="Count", fill="Group", color="Group")
+
+bpost2 <- ggplot(Baumann.post2, aes(x=post.test.2, fill=group)) + 
+  geom_histogram(alpha=0.5, bins = 15) +
+  facet_grid(.~group) + 
+  labs(title="Post-test 2 Histograms", x="Test Score",
+       y="Count", fill="Group", color="Group")
+
+bpost3 <- ggplot(Baumann.post3, aes(x=post.test.3, fill=group)) + 
+  geom_histogram(alpha=0.5, bins = 15) +
+  facet_grid(.~group) + 
+  labs(title="Post-test 3 Histograms", x="Test Score",
+       y="Count", fill="Group", color="Group")
+
+bpost1
+bpost2
+bpost3
+```
+
+</div>
+
+Kruskal-Wallis tests were performed on the three post-tests to see if one group outperformed another. To balance our alpha values, each test is performed at the 1.667% significance level.
+
+```{r echo=FALSE, comment=NA}
+kruskal.test(post.test.1 ~ group, data=Baumann.post1)
+kruskal.test(post.test.2 ~ group, data=Baumann.post2)
+kruskal.test(post.test.3 ~ group, data=Baumann.post3)
+```
+
+\newline
+
+\newline The p-values from all three tests are below the threshold, therefore we reject the null hypothesis in each case. We conclude that at least one group's test score's are stochastically different than the others for each post-test. 
+
+To see which groups performed differently, we refer to the visual displays below that plot the approximate distribution of each group's test scores. The distributions are estimates called density plots, and while they are not terribly accurate in this case, they offer an easy way of distinguishing between each group's distribution. (If need be, we may also refer to the histograms of the post-tests that have been displayed above.)
+
+```{r, echo=FALSE, message=FALSE, fig.width=8.5}
+library(plyr)
+
+Bpost1_mean <- ddply(Baumann.post1, "group", summarise, group.mean=mean(post.test.1))
+Bpost2_mean <- ddply(Baumann.post2, "group", summarise, group.mean=mean(post.test.2))
+Bpost3_mean <- ddply(Baumann.post3, "group", summarise, group.mean=mean(post.test.3))
+
+p1 <- ggplot(Baumann.post1,aes(x=post.test.1, color=group, fill=group)) + 
+  geom_density(alpha=0.25) + 
+  geom_vline(data=Bpost1_mean, aes(xintercept=group.mean, color=group),
+             linetype="dashed") +
+  labs(title="Post-test 1 Distributions", subtitle="Density estimates 
+       with added mean lines", x="Test Score",
+       y="Density", fill="Group", color="Group") +
+  scale_y_continuous(labels = scales::percent) +
+  scale_x_continuous(limits = c(0,20))
+
+p2 <- ggplot(Baumann.post2,aes(x=post.test.2, color=group, fill=group)) + 
+  geom_density(alpha=0.25) + 
+  geom_vline(data=Bpost2_mean, aes(xintercept=group.mean, color=group),
+             linetype="dashed") +
+  labs(title="Post-test 2 Distributions", subtitle="Density estimates 
+       with added mean lines", x="Test Score",
+       y="Density", fill="Group", color="Group") +
+  scale_y_continuous(labels = scales::percent) +
+  scale_x_continuous(limits = c(0,16))
+
+p3 <- ggplot(Baumann.post3,aes(x=post.test.3, color=group, fill=group)) + 
+  geom_density(alpha=0.25) + 
+  geom_vline(data=Bpost3_mean, aes(xintercept=group.mean, color=group),
+             linetype="dashed") +
+  labs(title="Post-test 3 Distributions", subtitle="Density estimates 
+       with added mean lines", x="Test Score",
+       y="Density", fill="Group", color="Group") +
+  scale_y_continuous(labels = scales::percent) +
+  scale_x_continuous(limits = c(20,60))
+
+p1
+p2
+p3
+```
+
+### Conclusion
+
+The Kruskal-Wallis tests allow us to confirm with a great deal of certainty that the instructional methods employed by the teachers have a significant effect on student's comprehension monitoring abilities. With the help of the density plots, we see where these groups defer in their ability:
+
+* The DTRA group outperformed the other two in post-test 1, with the Strat group marginally outperforming the Basal group.
+
+* The Strat group outperformed all others in post-test 2, with the DRTA group scoring better than the Basal group.
+
+* The DRTA group performed best in post-test 3, and again the Basal group scored the lowest on average.
+
+The effectiveness of the instructional method employed may depend on the tasks students are asked to perform. There is good evidence to suggest that the Strat approach helps students best when the tasks are like those asked of students in post-test 2. Overall, in all three tests the Strat and DRTA groups scored higher than the Basal group. At the very least, we may conclude these two instructional methods have a greater impact on student's than that of the Basal method.
+

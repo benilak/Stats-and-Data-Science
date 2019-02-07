@@ -1,0 +1,107 @@
+---
+title: "Predicting Weather"
+output: 
+  html_document:
+    theme: cerulean
+    code_folding: hide
+---
+
+### Can we predict the "Actual Maximum Temperature" for January 14th, 2019?
+
+```{r options, echo=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, results = FALSE, cache = TRUE,
+                      fig.width = 10)
+```
+
+```{r}
+# load libraries and data set
+library(tidyverse)
+library(car)
+library(DT)
+library(pander)
+weather <- read_csv("../Data/PredictingWeather.csv")
+```
+
+```{r}
+weather %>%
+  ggplot(aes(x = day, y = max_temp)) +
+  geom_point(color = "darkblue", size = 2) +
+  geom_abline(intercept = 21.03, slope = 0.36, color = "blue") +
+  geom_vline(xintercept = 14, color = "red") +
+  geom_point(aes(x = 14, y = 26.11), color = "red", size = 2) +
+  geom_text(aes(x = 10, y = 30, label = "26.1 degrees (F)")) +
+  scale_x_continuous(breaks = c(0, 14, 50, 100, 150)) +
+  labs(title = "Predicting Daily Maximum Temperature", 
+       subtitle = "uses randomly selected days from the months January - May, 2015-2017", 
+       x = "Day (nth day of the year)", 
+       y = "Max Temperature") 
+```
+
+This graph shows the regression line that is fitted to the data. On the 14th day of the year, the regression predicts an Actual Maximum Temperature of **26.1 degrees Fahrenheit**. The actual high temperature for the day was **28 degrees**. The regression turned out to be fairly accurate in this case. It has an R-squared value of 0.77, which is a decent fit.
+
+$$ $$
+
+#### The Data
+
+The data collected was taken from BYUI's weather database at http://web.byui.edu/Weather/. The sample consists of 30 observations -- 2 random data points from each of the months January through May, from the years 2015 - 2017. Dates were then transformed into the day of the year (example: February 17th is the 48th day of the year).
+
+```{r, results=TRUE}
+DT::datatable(weather, options = list(pageLength = 5))
+```
+
+$$ $$
+
+#### The Model
+
+The explanatory variable is day of the year, used to predict the actual maximum temperature.
+
+$$
+  \underbrace{Y_i}_\text{Max Temp} = \beta_0 + \beta_1 \underbrace{X_i}_\text{Day} + \epsilon_i \quad \text{where} \ \epsilon_i \sim N(0,\sigma^2)
+$$
+
+```{r, results=TRUE}
+weatherlm <- lm(max_temp ~ day, data = weather)
+pander(summary(weatherlm))
+```
+
+From the regression summary we take our model:
+
+$$
+  \underbrace{Y_i}_\text{Max Temp} = 21.03 + 0.36 \underbrace{X_i}_\text{Day} + \epsilon_i \quad \text{where} \ \epsilon_i \sim N(0,\sigma^2)  
+$$
+
+The model predicts that, on average, the first day of the year will have a high temperature of about 21 degrees (Farenheit), and that with each passing day that daily high will increase by 0.36 degrees. (This only applies to the months January through May).
+
+$$ 21.03 + 0.36(14) = 26.11 $$
+The model predicts the max temperature for January 14th is **26.1 degrees (F)**.
+
+$$ $$
+
+#### "Technical Details"
+
+The hypotheses for this regression are:
+$$
+  H_0: \beta_1 = 0 \\
+  H_a: \beta_1 \neq 0
+$$
+These plots allow us to check the assumptions of equal variance, normality, and independence:
+```{r}
+par(mfrow = c(1,3))
+plot(weatherlm, which=1)
+qqPlot(weatherlm$residuals)
+plot(weatherlm$residuals)
+```
+
+The data is nice and spread out in the first plot, so we may assume equal variance. The QQ-plot shows the data lies within the bands, so we may assume it is normally distributed. The final plot also indicates independence due to the equally spread out data.
+
+Since the assumptions all check out, we may rely on the regression's p-value:
+$$ p = 1.89 * 10^{-10} $$
+
+This is significant, so we can conclude the true regression line has a non-zero slope. This tells us the analysis performed is a valid one.
+
+
+
+
+
+
+$$ $$

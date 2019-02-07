@@ -1,0 +1,135 @@
+---
+title: "Laptop Value"
+output: 
+  html_document:
+    theme: cerulean
+    code_folding: hide
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, results = FALSE, cache = TRUE,
+                      fig.width = 11)
+```
+```{r}
+library(tidyverse)
+library(car)
+library(pander)
+
+# import data
+laptops_og <- read_csv("../Data/laptops.csv")
+
+# transform data
+laptops <- laptops_og %>%
+  separate(Memory, c("MemorySize", "MemoryType"), extra="merge") %>%
+  separate(MemorySize, c("MemorySize","MemorySizeUnits"), sep="(?<=[0-9])(?=[A-Za-z])") %>%
+  mutate(MemorySize = as.numeric(MemorySize)) %>%
+  mutate(MemorySizeGB = ifelse(MemorySizeUnits=="TB", MemorySize*1000, MemorySize)) %>%
+  separate(Ram, c("RamSize","RamUnits"), sep="(?<=[0-9])(?=[A-Za-z])") %>%
+  mutate(MemorySize = as.numeric(RamSize)) %>%
+  mutate(GHz = parse_number(str_sub(Cpu, -6, -4))) %>%
+  mutate(W = parse_number(str_extract(ScreenResolution, '\\d{3,4}(?=x)')),
+        H = parse_number(str_extract(ScreenResolution, '(?<=x)\\d{3,4}')),
+        MegaPixels = (W*H)/1048576) %>%
+  mutate(Price_dollars = Price_euros*1.14)
+
+# filter data
+simlaptops <- laptops %>%
+  filter(str_detect(MemoryType, 'SSD'),
+         str_detect(Cpu, 'i5|i7'),
+         RamSize %in% 8:16,
+         between(MegaPixels, 1, 3),
+         GHz > 1)
+
+# regression
+laptops.lm <- lm(Price_dollars ~ GHz, data = simlaptops)
+```
+
+### How does my laptop price compare to other similar laptops on the market?
+
+```{r}
+pts <- tibble(X = c(1.99, 1.99), Y = c(1338.3, 800))
+labls <- tibble(X = c(2.11, 2.12), Y = c(1700, 800))
+
+simlaptops %>%
+  ggplot(aes(x = GHz, y = Price_dollars)) +
+  geom_abline(intercept = 219.12, slope = 562.40, color = "darkgray", size = 1) +
+  geom_jitter(color = "red", size = 1.5) +
+  geom_vline(xintercept = 1.99, color = "red", linetype = "dashed", size = 1) +
+  geom_segment(aes(x = 1.99, y = 800, xend = 1.99, yend = 1338.3), color = "blue", size = 1) +
+  geom_point(data = pts, aes(x = X, y = Y), color = "darkblue", size = 3) +
+  geom_text(data = labls, aes(x = X, y = Y, label = c("Estimated price: \n $1,338.30", 
+                                               "Actual price: $800"))) +
+  scale_y_continuous(labels = scales::dollar) +
+  labs(title = "Laptop Prices, sorted by Processor Speed (GHz)", 
+       x = "CPU Clock Speed (GHz)", y = "Price ($)") +
+  theme_light() 
+```
+
+$~$
+
+The regression analysis estimates the price of a similar laptop is about **$1,338.30**. My laptop cost me about **$800** (let's hear it for NewEgg.com). 
+
+Assuming my own laptop is included as a data point, the **residual** would be the difference between the actual and estimated price:
+
+$$
+  \text{residual} = Y - \hat{Y} = 800 - 1338.30 = -538.30
+$$
+
+So I payed about **$538.30 under** the estimated normal market price for a similar laptop. The graph below shows the residual marked as a blue line segment.
+
+$~$
+
+#### Technical Details
+
+##### Background
+
+The actual regression used in this analysis uses the laptop processor's (CPU) clock speed as the explanatory variable (measured in GHz). This information was provided in the `Cpu` column of the data set, which was extracted and used to make the new variable `GHz`. Prices in Euros were converted to dollars. The regression itself was performed after filtering some of the more dissimilar laptops compared to my own. As seen in the code below, I chose only to use laptops with solid state drives, comparable processors and RAM, and similar screen resolution*. 
+
+```{r, eval=FALSE}
+# filter data
+simlaptops <- laptops %>%
+  filter(str_detect(MemoryType, 'SSD'),
+         str_detect(Cpu, 'i5|i7'),
+         RamSize %in% 8:16,
+         between(MegaPixels, 1, 3),
+         GHz > 1)
+```
+ *The variable `MegaPixels` was derived from the `ScreenResolution` column in the data set.
+
+$~$
+
+##### Regression
+
+The null and alternative hypotheses for this regression are:
+$$
+  H_0: \beta_1 = 0 \\
+  H_a: \beta_1 \neq 0
+$$
+
+Below is a summary of the regression used in this analysis.
+```{r, results='markup'}
+pander(summary(laptops.lm))
+```
+
+*Assuming an accurate regression*, we could: 
+
+  * expect an increase of $562.40 in the average laptop price for each additional GHz of processor speed,
+  * reject the null hypothesis based on the significant p-value $(\text{p} = 2.068 * 10^{-20})$, and
+  * conclude the slope of the true regression line is in fact not zero.
+
+**But**, as seen above, the R-squared value is abysmal (0.1444). That's because a good fit could not be made with the data, which is apparant in the graph at the beginning of this document (and further confirmed below under "Checking Assumptions"). None of the possible continuous variables really "explain" the price of the laptops all that well on their own (GHz was the best option, in my opinion, and it still wasn't very good). More on this below.
+
+$~$
+
+##### Checking Assumptions
+
+```{r}
+par(mfrow = c(1,3))
+plot(laptops.lm, which=1)
+qqPlot(laptops.lm$residuals)
+plot(laptops.lm$residuals)
+```
+
+Not surprisingly, our assumptions don't really check out. The variance is unequal, the data is not normally distributed and probably not linear (although the error terms do appear to be independent). We shouldn't actually rely on this regression to make any accurate estimations about laptop price. In other words, **the regression is invalid**. I had a hard time finding what to use for the explanatory variable in this regression. Given the data, simple linear regression without any transformations just really isn't cut out for the job in this case.
+
+$~$
